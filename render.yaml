@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: coupon-frontend
+    env: static
+    buildCommand: cd front && npm install && npm run build
+    staticPublishPath: front/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: coupon-backend
+    env: node
+    buildCommand: cd back && npm install
+    startCommand: cd back && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
