@@ -52,10 +52,12 @@ const AdminPage: React.FC = () => {
   // --- Helpers ---
   const formatTime = (isoString?: string) => {
     if (!isoString) return '-';
+    // Display in Local Time (IST)
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDate = (isoString: string) => {
+    // Display in Local Date
     return new Date(isoString).toLocaleDateString('en-GB'); 
   };
 
@@ -101,14 +103,15 @@ const AdminPage: React.FC = () => {
     setDescription(event.description);
     setCurrentStatus(event.status);
     
+    // Parse Date for Input Field (YYYY-MM-DD)
     const dt = new Date(event.date);
-    const year = dt.getFullYear();
-    const month = String(dt.getMonth() + 1).padStart(2, '0');
-    const day = String(dt.getDate()).padStart(2, '0');
-    setEventDate(`${year}-${month}-${day}`); 
+    // Use en-CA because it reliably gives YYYY-MM-DD format
+    setEventDate(dt.toLocaleDateString('en-CA')); 
 
+    // Parse Time for Input Fields (HH:mm)
     if (event.time_start) {
         const start = new Date(event.time_start);
+        // Force 'en-GB' to get 24h format (13:00) which input type="time" requires
         setStartTime(start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
     }
     if (event.time_end) {
@@ -167,18 +170,17 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const getTodayIST = () => {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-};
+  // ✅ FIXED: Safer way to get today's date for 'min' attribute
+  const getTodayDate = () => {
+    // 'en-CA' locale code always outputs YYYY-MM-DD format
+    return new Date().toLocaleDateString('en-CA'); 
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const selectedDate = new Date(eventDate);
-    const today = new Date(getTodayIST());
-    
-    if (selectedDate < today) {
+    // Simple string comparison for 'min' date works fine here
+    if (eventDate < getTodayDate()) {
       setMessage({ 
         type: 'danger', 
         text: 'Cannot create events for past dates. Please select today or a future date.' 
@@ -186,9 +188,17 @@ const AdminPage: React.FC = () => {
       return;
     }
 
-    const fullDate = `${eventDate}T00:00:00.000Z`;
-    const fullStartTime = `${eventDate} ${startTime}:00`;
-    const fullEndTime = `${eventDate} ${endTime}:00`;
+    // ✅ FIXED: TIME CONVERSION
+    // 1. Create a Date object from the Local Input (Browser treats this as IST)
+    const dateObj = new Date(eventDate);
+    const startObj = new Date(`${eventDate}T${startTime}:00`);
+    const endObj = new Date(`${eventDate}T${endTime}:00`);
+
+    // 2. Convert to UTC String before sending to Backend
+    // Example: 12:00 IST -> 06:30 UTC
+    const isoDate = dateObj.toISOString();
+    const isoStartTime = startObj.toISOString();
+    const isoEndTime = endObj.toISOString();
 
     setLoading(true);
 
@@ -197,9 +207,9 @@ const AdminPage: React.FC = () => {
         await eventsApi.update(editingEventId, { 
             name: eventName, 
             description, 
-            date: fullDate,
-            time_start: fullStartTime, 
-            time_end: fullEndTime,
+            date: isoDate,        // Send UTC
+            time_start: isoStartTime, // Send UTC
+            time_end: isoEndTime,     // Send UTC
             status: currentStatus 
         });
 
@@ -209,7 +219,7 @@ const AdminPage: React.FC = () => {
         const eventData = await eventsApi.create({ 
             name: eventName, 
             description, 
-            date: fullDate 
+            date: isoDate 
         });
         
         const slotPromises: Promise<any>[] = [];
@@ -219,8 +229,8 @@ const AdminPage: React.FC = () => {
                 floor: floor.floorName,
                 counter: i,
                 capacity: floor.capacityPerCounter,
-                time_start: fullStartTime,
-                time_end: fullEndTime
+                time_start: isoStartTime, // Send UTC
+                time_end: isoEndTime      // Send UTC
             }));
           }
         });
@@ -318,7 +328,8 @@ const AdminPage: React.FC = () => {
                     required 
                     value={eventName} 
                     onChange={e => setEventName(e.target.value)} 
-                    min={getTodayIST()} 
+                    // Use new helper function
+                    min={getTodayDate()} 
                     placeholder="e.g. Christmas Dinner"
                     className="custom-placeholder" 
                     style={{ backgroundColor: colors.ui.background, color: colors.text.primary, borderColor: colors.ui.border }}
@@ -541,9 +552,9 @@ const AdminPage: React.FC = () => {
 
       {/* --- VOLUNTEER MODAL COMPONENT --- */}
       <VolunteerManagerModal 
-        show={showVolModal}
-        onHide={() => setShowVolModal(false)}
-        eventId={selectedEventForVol?.id || null}
+        show={showVolModal} 
+        onHide={() => setShowVolModal(false)} 
+        eventId={selectedEventForVol?.id || null} 
         eventName={selectedEventForVol?.name || ''} 
       />
     </Container>

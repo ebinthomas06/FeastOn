@@ -82,8 +82,8 @@ router.patch('/:id', authenticateToken, requireAdmin, async (req, res) => {
         if (time_start && time_end) {
             await db.query(
                 `UPDATE event_slots 
-                 SET time_start = $1, 
-                     time_end = $2 
+                 SET time_start = $1::timestamp, 
+                     time_end = $2::timestamp 
                  WHERE event_id = $3`,
                 [time_start, time_end, id]
             );
