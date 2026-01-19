@@ -168,11 +168,9 @@ const AdminPage: React.FC = () => {
   };
 
   const getTodayIST = () => {
-    const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000; 
-    const istDate = new Date(now.getTime() + istOffset);
-    return istDate.toISOString().split('T')[0];
-  };
+  const now = new Date();
+  return now.toISOString().split('T')[0];
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

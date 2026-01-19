@@ -104,7 +104,7 @@ setInterval(async () => {
           SELECT event_id
           FROM event_slots
           GROUP BY event_id
-          HAVING MAX(time_end) < timezone('Asia/Kolkata', NOW())
+          HAVING MAX(time_end) < NOW()
         )
       `);
 

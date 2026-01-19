@@ -104,8 +104,7 @@ const EventStatsModal: React.FC<EventStatsModalProps> = ({ show, onHide, eventId
        return standardDate.toLocaleTimeString('en-IN', { 
            hour: '2-digit', 
            minute: '2-digit', 
-           hour12: true, 
-           timeZone: 'Asia/Kolkata' 
+           hour12: true
        });
     }
     return timeStr;

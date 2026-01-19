@@ -22,7 +22,7 @@ const formatScanTime = (timeStr: string) => {
   try {
     const date = new Date(timeStr);
     if (isNaN(date.getTime())) return 'Invalid time';
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   } catch (err) {
     return 'Error';
   }

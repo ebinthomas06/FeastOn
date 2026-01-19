@@ -19,8 +19,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
             AND event_id IN (
                 SELECT event_id FROM event_slots
                 GROUP BY event_id
-                HAVING MAX(time_end) < (NOW() AT TIME ZONE 'UTC' + interval '5 hours 30 minutes')
-            )
+                HAVING MAX(time_end) < NOW())
         `);
 
         // --- Fetch List ---
@@ -343,7 +342,7 @@ router.get('/all-for-student', async (req, res) => {
                 LEFT JOIN registrations r ON e.event_id = r.event_id AND r.student_id = $1
                 LEFT JOIN event_slots s ON r.slot_id = s.slot_id
                 WHERE (e.status = 'closed') 
-                   OR (e.status = 'active' AND (s.time_end IS NULL OR s.time_end > timezone('Asia/Kolkata', NOW())))
+                   OR (e.status = 'active' AND (s.time_end IS NULL OR s.time_end > NOW()))
                 ORDER BY e.date DESC, s.time_start DESC
             `;
             
@@ -372,7 +371,7 @@ router.get('/:id/scan-history', authenticateToken, requireAdmin, async (req, res
                 u.email as roll_number,
                 u.batch,
                 COALESCE(CONCAT(va.floor, ' - Counter ', va.counter), 'Staff') as counter_name,
-                timezone('Asia/Kolkata', r.served_at) as scanned_at
+                r.served_at as scanned_at
             FROM registrations r
             JOIN users u ON r.student_id = u.user_id
             LEFT JOIN volunteer_actions va ON va.registration_id = r.registration_id
@@ -481,7 +480,7 @@ router.get('/:id/scan-history/volunteer/:volunteerId', authenticateToken, async 
                 u.email as roll_number,
                 u.batch,
                 CONCAT(va.floor, ' - Counter ', va.counter) as counter_name,
-                timezone('Asia/Kolkata', r.served_at) as scanned_at
+                r.served_at as scanned_at
             FROM registrations r
             JOIN users u ON r.student_id = u.user_id
             JOIN volunteer_actions va ON va.registration_id = r.registration_id

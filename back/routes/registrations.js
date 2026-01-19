@@ -156,7 +156,7 @@ router.post('/scan', scanLimiter, async (req, res) => {
 
         // E. Update with proper timezone
         await client.query(
-            "UPDATE registrations SET status = 'served', served_at = timezone('Asia/Kolkata', NOW()) WHERE registration_id = $1",
+            "UPDATE registrations SET status = 'served', served_at = NOW() WHERE registration_id = $1",
             [registration.registration_id]
         );
 
