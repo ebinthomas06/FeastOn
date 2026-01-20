@@ -152,21 +152,17 @@ export const StaffPage = () => {
 
   useEffect(() => {
     const fetchCurrentEvent = async () => {
-        try {
-            const volunteerUser = user as any;
-            if (volunteerUser?.event_id) {
-                const allEvents = await eventsApi.getAll();
-                const currentEvent = allEvents.find((e: EventData) => e.event_id === volunteerUser.event_id);
-                
-                if (currentEvent) {
-                    setEvents([currentEvent]);
-                }
-            }
-        } catch(err) { 
-            console.error("Failed to load event", err); 
+    try {
+        const volunteerUser = user as any;
+        if (volunteerUser?.id) {
+            const currentEvent = await eventsApi.getVolunteerEvent(volunteerUser.id);
+            setEvents([currentEvent]);
         }
-    };
-    
+    } catch(err) { 
+        console.error("Failed to load event", err); 
+        setEvents([]); // Show "No event assigned"
+    }
+};
     if (user) {
         fetchCurrentEvent();
     }

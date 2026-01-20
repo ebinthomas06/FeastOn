@@ -496,6 +496,28 @@ router.get('/:id/scan-history/volunteer/:volunteerId', authenticateToken, async 
     }
 });
 
-
+// GET VOLUNTEER'S ASSIGNED EVENT (No admin required)
+router.get('/volunteer/:volunteerId', authenticateToken, async (req, res) => {
+    const { volunteerId } = req.params;
+    try {
+        const result = await db.query(`
+            SELECT e.*, 
+                   (SELECT time_start FROM event_slots WHERE event_id = e.event_id LIMIT 1) as time_start,
+                   (SELECT time_end FROM event_slots WHERE event_id = e.event_id LIMIT 1) as time_end
+            FROM events e 
+            JOIN volunteers v ON e.event_id = v.event_id
+            WHERE v.id = $1
+        `, [volunteerId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "No event assigned to this volunteer" });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 module.exports = router;

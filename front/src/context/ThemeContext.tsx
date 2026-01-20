@@ -12,22 +12,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mode, setMode] = useState<ThemeMode>('light');
-
-  // Check system preference or local storage on load
-  useEffect(() => {
+  // Initialize state by checking localStorage immediately
+  const [mode, setMode] = useState<ThemeMode>(() => {
     const savedTheme = localStorage.getItem('app_theme') as ThemeMode;
-    if (savedTheme) {
-      setMode(savedTheme);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setMode('dark');
+    // If a valid saved theme exists (light or dark), use it (persists on reload)
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
     }
-  }, []);
+    // If no saved theme exists (first visit), force 'light'
+    return 'light'; 
+  });
+
+  // Save preference to localStorage whenever the mode changes
+  useEffect(() => {
+    localStorage.setItem('app_theme', mode);
+  }, [mode]);
 
   const toggleTheme = () => {
-    const newMode = mode === 'light' ? 'dark' : 'light';
-    setMode(newMode);
-    localStorage.setItem('app_theme', newMode);
+    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
   };
 
   const colors = mode === 'light' ? lightTheme : darkTheme;

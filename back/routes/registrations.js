@@ -9,7 +9,7 @@ const rateLimit = require('express-rate-limit');
 const generateToken = () => crypto.randomBytes(16).toString('hex');
 const scanLimiter = rateLimit({
     windowMs: 1000, // 1 second
-    max: 3, // Max 3 scans per second per IP
+    max: 50, // Max 50 scans per second per IP
     message: { error: "Too many scan attempts, please wait" }
 });
 
@@ -188,3 +188,4 @@ router.post('/scan', scanLimiter, async (req, res) => {
 });
 
 module.exports = router;
+

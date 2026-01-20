@@ -82,7 +82,9 @@ export const eventsApi = {
 
   getVolunteerScanHistory: (eventId: number, volunteerId: number) => 
     request(`/events/${eventId}/scan-history/volunteer/${volunteerId}`),
-    
+  
+  getVolunteerEvent: (volunteerId: number) => 
+    request(`/events/volunteer/${volunteerId}`),    
 
   // Stats
   getStats: (eventId: number) => 
