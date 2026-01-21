@@ -25,7 +25,8 @@ interface BackendEvent {
 
 // --- FIXED COMPONENT: PAST EVENT CARD ---
 const PastEventCard: React.FC<{ event: BackendEvent }> = ({ event }) => {
-  const { colors } = useTheme(); 
+  // Destructure mode to check for 'dark'
+  const { colors, mode } = useTheme(); 
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -74,17 +75,35 @@ const PastEventCard: React.FC<{ event: BackendEvent }> = ({ event }) => {
     }
   };
 
+  // Define styles based on mode
+  const cardStyle = mode === 'dark' 
+    ? {
+        backgroundColor: colors.ui.card, // Use card color instead of background for better contrast
+        opacity: 1, // Full opacity for clarity in dark mode
+        border: `1px solid ${colors.ui.border}`, // Distinct border
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)' // Deeper shadow for dark mode
+      }
+    : {
+        backgroundColor: colors.ui.background,
+        opacity: 0.9,
+        border: 'none', // No border for light mode
+        boxShadow: '0 .125rem .25rem rgba(0,0,0,.075)' // Standard Bootstrap shadow-sm
+      };
+
   return (
-    <Card className="h-100 border-0 shadow-sm" style={{ backgroundColor: colors.ui.background, opacity: 0.9 }}>
+    <Card className="h-100" style={cardStyle}>
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-2">
-          <h5 className="fw-bold mb-0" style={{ color: colors.text.secondary }}>{event.name}</h5>
+          <h5 className="fw-bold mb-0" style={{ color: colors.text.primary }}>{event.name}</h5>
           <Badge bg="secondary" pill>{formatDate(event.date)}</Badge>
         </div>
         
         <p className="small mb-3" style={{ color: colors.text.secondary }}>{event.description}</p>
         
-        <div className="p-3 rounded-3 border" style={{ backgroundColor: colors.ui.card, borderColor: colors.ui.border }}>
+        <div className="p-3 rounded-3" style={{ 
+            backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : colors.ui.card, 
+            border: `1px solid ${colors.ui.border}` 
+        }}>
           {renderStatus()}
         </div>
       </Card.Body>
@@ -348,4 +367,4 @@ const DashboardPage: React.FC = () => {
   );
 };
 
-export default DashboardPage;
+export default DashboardPage; 

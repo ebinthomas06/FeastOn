@@ -19,7 +19,7 @@ interface Volunteer {
 }
 
 const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onHide, eventId, eventName }) => {
-  const { colors, mode } = useTheme(); // Get mode for conditional CSS
+  const { colors, mode } = useTheme(); 
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -29,7 +29,8 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
   const [newPassword, setNewPassword] = useState('');
   
   // Success State
-  const [createdCreds, setCreatedCreds] = useState<{u: string, p: string} | null>(null);
+  // UPDATED: Added 'n' (name) to the state interface
+  const [createdCreds, setCreatedCreds] = useState<{n: string, u: string, p: string} | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
 
   // Toast State
@@ -78,7 +79,9 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
         password: newPassword
       });
 
-      setCreatedCreds({ u: newUsername, p: newPassword });
+      // UPDATED: Save name to state so we can copy it later
+      setCreatedCreds({ n: newName, u: newUsername, p: newPassword });
+      
       fetchVolunteers();
       setNewName('');
       generateSuggestedCredentials();
@@ -91,29 +94,19 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
     }
   };
 
-  // 🔴 UPDATED DELETE FUNCTION
   const handleDelete = async (volId: number, volName: string) => {
-    // 1. Optimistic Update (Remove instantly)
     const previousVolunteers = [...volunteers];
     setVolunteers(prev => prev.filter(v => v.id !== volId));
 
     try {
-      // 2. API Call
       await eventsApi.deleteVolunteer(volId);
-      
-      // 3. Success Notification
       setToastVariant('success');
       setToastMessage(`Deleted ${volName} successfully.`);
       setShowToast(true);
-
     } catch (err: any) {
       console.error("Delete failed:", err);
-      
-      // 4. FAILURE: Revert UI & Show Error
       setVolunteers(previousVolunteers);
-      
       setToastVariant('danger');
-      // Show the actual error from backend if possible
       setToastMessage(`Could not delete: ${err.message || "Server Error"}`);
       setShowToast(true);
     }
@@ -121,14 +114,14 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
 
   const copyToClipboard = () => {
     if (createdCreds) {
-      const text = `🔑 *Klee Volunteer Access*\nEvent: ${eventName}\nUsername: ${createdCreds.u}\nPassword: ${createdCreds.p}`;
+      // UPDATED: Added Volunteer Name to the copied text
+      const text = `🔑 *Klee Volunteer Access*\nEvent: ${eventName}\nVolunteer: ${createdCreds.n}\nUsername: ${createdCreds.u}\nPassword: ${createdCreds.p}`;
       navigator.clipboard.writeText(text);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     }
   };
 
-  // Define common input styles for dark mode compatibility
   const inputStyle = {
     backgroundColor: colors.ui.background,
     color: colors.text.primary,
@@ -137,9 +130,6 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
 
   return (
     <>
-      {/* 1. FIX PLACEHOLDERS: Inject dynamic CSS for inputs with class 'custom-placeholder'
-          2. FIX CLOSE BUTTON: Invert colors for .btn-close in dark mode
-      */}
       <style>
         {`
           .custom-placeholder::placeholder {
@@ -160,7 +150,7 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
         onHide={onHide} 
         size="lg" 
         centered
-        className="volunteer-modal-custom" // Apply custom class for targeting close button
+        className="volunteer-modal-custom" 
       >
         <Modal.Header 
             closeButton 
@@ -186,7 +176,7 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
                               onChange={e => setNewName(e.target.value)} 
                               required 
                               style={inputStyle}
-                              className="custom-placeholder" // Applied Placeholder Fix
+                              className="custom-placeholder" 
                           />
                       </div>
                       <div className="col-md-3">
@@ -198,7 +188,7 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
                                   onChange={e => setNewUsername(e.target.value)} 
                                   required 
                                   style={inputStyle}
-                                  className="custom-placeholder" // Applied Placeholder Fix
+                                  className="custom-placeholder" 
                               />
                           </InputGroup>
                       </div>
@@ -209,7 +199,7 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
                                   onChange={e => setNewPassword(e.target.value)} 
                                   required 
                                   style={inputStyle}
-                                  className="custom-placeholder" // Applied Placeholder Fix
+                                  className="custom-placeholder" 
                             />
                       </div>
                       <div className="col-md-2">
@@ -224,7 +214,7 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
                       </div>
                   </div>
                   <Form.Text className="small" style={{ color: colors.text.secondary }}>
-                     Username and password are auto-generated for ease, but you can edit them.
+                      Username and password are auto-generated for ease, but you can edit them.
                   </Form.Text>
               </Form>
           </div>
@@ -241,6 +231,8 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
               >
                   <div>
                       <strong>User Created!</strong> Share details:<br/>
+                      {/* UPDATED: Display name here as well for confirmation */}
+                      Name: <span className="fw-bold" style={{ color: colors.text.primary }}>{createdCreds.n}</span> &nbsp;|&nbsp;
                       Username: <code className="fw-bold fs-6" style={{ color: colors.text.primary }}>{createdCreds.u}</code> &nbsp;|&nbsp; 
                       Password: <code className="fw-bold fs-6" style={{ color: colors.text.primary }}>{createdCreds.p}</code>
                   </div>

@@ -24,7 +24,7 @@ interface EventData {
 }
 
 const AdminPage: React.FC = () => {
-  const { colors } = useTheme(); 
+  const { colors,mode } = useTheme(); 
 
   // --- Form State ---
   const [eventName, setEventName] = useState('');
@@ -281,6 +281,14 @@ const AdminPage: React.FC = () => {
             color: ${colors.text.secondary} !important;
             opacity: 0.7;
           }
+            /* Force calendar/clock icons to invert in Dark Mode so they are visible */
+          ${mode === 'dark' ? `
+            ::-webkit-calendar-picker-indicator {
+                filter: invert(1);
+                opacity: 0.8;
+                cursor: pointer;
+            }
+          ` : ''}
         `}
       </style>
 
@@ -562,3 +570,4 @@ const AdminPage: React.FC = () => {
 };
 
 export default AdminPage;
+
