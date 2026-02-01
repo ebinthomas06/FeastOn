@@ -51,9 +51,11 @@ const AdminPage: React.FC = () => {
 
   // --- Helpers ---
   const formatTime = (isoString?: string) => {
-    if (!isoString) return '-';
-    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  if (!isoString) return '-';
+  // Only add 'Z' if it doesn't already end with 'Z'
+  const timestamp = isoString.endsWith('Z') ? isoString : isoString + 'Z';
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
   const formatDate = (isoString: string) => {
     return new Date(isoString).toLocaleDateString('en-GB'); 
@@ -108,13 +110,14 @@ const AdminPage: React.FC = () => {
     setEventDate(`${year}-${month}-${day}`); 
 
     if (event.time_start) {
-        const start = new Date(event.time_start);
-        setStartTime(start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+    const start = new Date(event.time_start + 'Z');
+    setStartTime(start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
     }
     if (event.time_end) {
-        const end = new Date(event.time_end);
+        const end = new Date(event.time_end + 'Z');
         setEndTime(end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
     }
+
 
     window.scrollTo(0, 0);
     setMessage({ type: 'success', text: `Editing mode: ${event.name}` });
@@ -187,9 +190,8 @@ const AdminPage: React.FC = () => {
     }
 
     const fullDate = `${eventDate}T00:00:00.000Z`;
-    const fullStartTime = `${eventDate} ${startTime}:00`;
-    const fullEndTime = `${eventDate} ${endTime}:00`;
-
+    const fullStartTime = `${eventDate}T${startTime}:00Z`;
+    const fullEndTime = `${eventDate}T${endTime}:00Z`;  
     setLoading(true);
 
     try {

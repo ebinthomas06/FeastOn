@@ -4,20 +4,27 @@ const router = express.Router();
 const db = require('../db');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
+const { authenticateToken } = require('../middleware/auth');
 
 
 const generateToken = () => crypto.randomBytes(16).toString('hex');
 const scanLimiter = rateLimit({
-    windowMs: 1000, // 1 second
-    max: 3, // Max 3 scans per second per IP
-    message: { error: "Too many scan attempts, please wait" }
+  windowMs: 1000,   // 1 second
+  max: 100,         // 100 scans/sec/IP
+  standardHeaders: true,
+  legacyHeaders: false
 });
+
 
 // ==========================================
 // 1. REGISTER STUDENT (Auto-assigns Random Slot)
 // ==========================================
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     const { student_id, event_id } = req.body;
+
+    if (req.user.user_id !== student_id) {
+        return res.status(403).json({ error: "Unauthorized: Can only register yourself" });
+    }
 
     try {
         // A. Check if Registration Exists
@@ -86,9 +93,12 @@ router.post('/', async (req, res) => {
 // ==========================================
 // 2. SCAN QR CODE (Volunteer Action)
 // ==========================================
-router.post('/scan', scanLimiter, async (req, res) => {
+router.post('/scan', scanLimiter, authenticateToken, async (req, res) => {
     const { qr_token, volunteer_id } = req.body;
 
+    if (req.user.id !== volunteer_id) {
+        return res.status(403).json({ error: "Unauthorized: Invalid volunteer ID" });
+    }
     // Input validation
     if (!qr_token || !volunteer_id) {
         return res.status(400).json({ error: "Missing required fields" });
