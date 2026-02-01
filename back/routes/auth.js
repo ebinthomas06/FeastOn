@@ -5,6 +5,26 @@ const db = require('../db');
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+
+const volunteerLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500,                // 500 requests per IP
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const isValidStudentEmail = (email) => {
+    const localPart = email.split('@')[0];
+
+    // Example accepted:
+    // sanjays24bec18
+    // rahul23bcs07
+    const studentRegex = /^[a-z]+(\d{2})[a-z]+\d+$/i;
+
+    return studentRegex.test(localPart);
+};
+
 
 
 // 1. Setup Google Client
@@ -35,7 +55,7 @@ const extractBatch = (email) => {
         return null;
     }
 };
-router.post('/login', async (req, res) => {
+router.post('/login', volunteerLoginLimiter, async (req, res) => {
     const { username, password } = req.body;
     try {
         // Try volunteers table first (includes both volunteers and admins)
@@ -99,12 +119,22 @@ router.post('/google', async (req, res) => {
         const googleEmail = payload.email;
         const googleName = payload.name;
 
-        // B. DOMAIN LOCK (Security Check)
+        
+
+        // B. DOMAIN LOCK
         if (!googleEmail.endsWith('@iiitkottayam.ac.in')) {
             return res.status(403).json({ 
                 error: "Access Restricted. Please login with your IIIT Kottayam email." 
             });
         }
+
+        // 🚫 NEW: Reject non-student emails
+        if (!isValidStudentEmail(googleEmail)) {
+            return res.status(403).json({
+                error: "Access Restricted. Login with student email!"
+            });
+        }
+
 
         // C. CHECK IF USER EXISTS
         let userResult = await db.query('SELECT * FROM users WHERE email = $1', [googleEmail]);
@@ -155,14 +185,16 @@ router.post('/google', async (req, res) => {
                 batch: user.batch
             }
         });
+        
 
     } catch (err) {
         console.error("Auth Error:", err);
         res.status(401).json({ error: "Invalid Google Token" });
     }
+    
 });
 // Add this route for volunteer login
-router.post('/volunteer-login', async (req, res) => {
+router.post('/volunteer-login', volunteerLoginLimiter, async (req, res) => {
     const { username, password } = req.body;
     console.log('=== VOLUNTEER LOGIN ATTEMPT ===');
     console.log('Username:', username);

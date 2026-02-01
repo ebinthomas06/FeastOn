@@ -4,43 +4,28 @@ const router = express.Router();
 const db = require('../db');
 const bcrypt = require('bcryptjs');
 const { authenticateToken, requireAdmin } = require('../middleware/auth'); 
+const rateLimit = require('express-rate-limit');
 
-
-
-// 1. GET ALL EVENTS (Admin)
-router.get('/', authenticateToken, requireAdmin, async (req, res) => {
-    try {
-        //  RE-ADDED: Auto-Close Logic
-        // This checks if the event's End Time is less than the Current Time (in IST)
-        await db.query(`
-            UPDATE events
-            SET status = 'closed'
-            WHERE status = 'active'
-            AND event_id IN (
-                SELECT event_id FROM event_slots
-                GROUP BY event_id
-                HAVING MAX(time_end) < NOW())
-        `);
-
-        // --- Fetch List ---
-        const result = await db.query(`
-            SELECT e.*, 
-                   (SELECT time_start FROM event_slots WHERE event_id = e.event_id LIMIT 1) as time_start,
-                   (SELECT time_end FROM event_slots WHERE event_id = e.event_id LIMIT 1) as time_end
-            FROM events e 
-            ORDER BY date ASC
-        `);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Server error" });
-    }
+const adminMutationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,             // 20 admin actions per minute
+  standardHeaders: true,
+  legacyHeaders: false
 });
+
+
+
+
 
 // ==========================================
 // 2. CREATE EVENT (Admin)
 // ==========================================
-router.post('/', authenticateToken, requireAdmin, async (req, res) => {
+router.post(
+  '/',
+  authenticateToken,
+  requireAdmin,
+  adminMutationLimiter,
+  async (req, res) => {
     const { name, description, date, status } = req.body;
     try {
         const result = await db.query(
@@ -58,8 +43,12 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
 // ==========================================
 // 3. CLOSE / UPDATE EVENT (Admin)
 // ==========================================
-router.patch('/:id', authenticateToken, requireAdmin, async (req, res) => {
-    const { id } = req.params;
+router.patch(
+  '/:id',
+  authenticateToken,
+  requireAdmin,
+  adminMutationLimiter,
+  async (req, res) => {    const { id } = req.params;
     // We extract status explicitly. If the admin sends "active", we MUST respect it.
     let { name, description, date, status, time_start, time_end } = req.body;
 
@@ -79,15 +68,15 @@ router.patch('/:id', authenticateToken, requireAdmin, async (req, res) => {
         if (result.rows.length === 0) return res.status(404).json({ error: "Event not found" });
 
         // 2. Update the Slots
-        if (time_start && time_end) {
-            await db.query(
-                `UPDATE event_slots 
-                 SET time_start = $1::timestamp, 
-                     time_end = $2::timestamp 
-                 WHERE event_id = $3`,
-                [time_start, time_end, id]
-            );
-        }
+if (time_start && time_end) {
+    await db.query(
+        `UPDATE event_slots 
+         SET time_start = $1::timestamp, 
+             time_end = $2::timestamp 
+         WHERE event_id = $3`,
+        [time_start, time_end, id]
+    );
+}
 
         res.json(result.rows[0]);
 
@@ -100,7 +89,12 @@ router.patch('/:id', authenticateToken, requireAdmin, async (req, res) => {
 // ==========================================
 // 4. CREATE SLOT
 // ==========================================
-router.post('/:id/slots', authenticateToken, requireAdmin, async (req, res) => {
+router.post(
+  '/:id/slots',
+  authenticateToken,
+  requireAdmin,
+  adminMutationLimiter,
+  async (req, res) => {
     const { id } = req.params;
     const { floor, counter, capacity, time_start, time_end } = req.body;
     try {
@@ -119,8 +113,12 @@ router.post('/:id/slots', authenticateToken, requireAdmin, async (req, res) => {
 // ==========================================
 // 5. DELETE EVENT (Transactional Hard Delete)
 // ==========================================
-router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
-    const { id } = req.params;
+router.delete(
+  '/:id',
+  authenticateToken,
+  requireAdmin,
+  adminMutationLimiter,
+  async (req, res) => {    const { id } = req.params;
     
     try {
         // Use db.query instead of pool connection
@@ -182,8 +180,12 @@ router.get('/:id/volunteers', authenticateToken, requireAdmin, async (req, res) 
 });
 
 // ADD a New Volunteer
-router.post('/:id/volunteers', authenticateToken, requireAdmin, async (req, res) => {
-    try {
+router.post(
+  '/:id/volunteers',
+  authenticateToken,
+  requireAdmin,
+  adminMutationLimiter,
+  async (req, res) => {    try {
         const { id } = req.params; // event_id
         const { name, username, password } = req.body;
 
@@ -208,7 +210,12 @@ router.post('/:id/volunteers', authenticateToken, requireAdmin, async (req, res)
 });
 
 // DELETE VOLUNTEER
-router.delete('/volunteers/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.delete(
+  '/volunteers/:id',
+  authenticateToken,
+  requireAdmin,
+  adminMutationLimiter,
+  async (req, res) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM volunteer_actions WHERE volunteer_id = $1', [id]);
@@ -229,51 +236,56 @@ router.delete('/volunteers/:id', authenticateToken, requireAdmin, async (req, re
 // 7. EVENT STATISTICS & DASHBOARD DATA
 // ==========================================
 
-// GET EVENT STATISTICS (Admin)
-router.get('/:id/stats', authenticateToken, requireAdmin, async (req, res) => {
+// ADMIN – OVERALL EVENT STATS
+router.get(
+  '/:id/stats',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
     const { id } = req.params;
+
     try {
-        const totalReq = await db.query(`
-            SELECT COUNT(*) 
-            FROM volunteer_actions va
-            JOIN registrations r ON va.registration_id = r.registration_id
-            WHERE r.event_id = $1
-        `, [id]);
+      const totalReq = await db.query(`
+        SELECT COUNT(*) 
+        FROM volunteer_actions va
+        JOIN registrations r ON va.registration_id = r.registration_id
+        WHERE r.event_id = $1
+      `, [id]);
 
-        const batchReq = await db.query(`
-            SELECT u.batch, COUNT(*) as count
-            FROM volunteer_actions va
-            JOIN registrations r ON va.registration_id = r.registration_id
-            JOIN users u ON r.student_id = u.user_id
-            WHERE r.event_id = $1
-            GROUP BY u.batch
-            ORDER BY u.batch ASC
-        `, [id]);
+      const batchReq = await db.query(`
+        SELECT u.batch, COUNT(*) as count
+        FROM volunteer_actions va
+        JOIN registrations r ON va.registration_id = r.registration_id
+        JOIN users u ON r.student_id = u.user_id
+        WHERE r.event_id = $1
+        GROUP BY u.batch
+        ORDER BY u.batch ASC
+      `, [id]);
 
-        const counterReq = await db.query(`
-            SELECT 
-                CONCAT(va.floor, ' - Counter ', va.counter) as counter_name, 
-                COUNT(*) as count
-            FROM volunteer_actions va
-            JOIN registrations r ON va.registration_id = r.registration_id
-            WHERE r.event_id = $1 
-            AND va.floor IS NOT NULL 
-            AND va.counter IS NOT NULL
-            GROUP BY va.floor, va.counter
-            ORDER BY va.floor, va.counter ASC
-        `, [id]);
+      const counterReq = await db.query(`
+        SELECT 
+          CONCAT(va.floor, ' - Counter ', va.counter) AS counter_name,
+          COUNT(*) as count
+        FROM volunteer_actions va
+        JOIN registrations r ON va.registration_id = r.registration_id
+        WHERE r.event_id = $1
+        GROUP BY va.floor, va.counter
+        ORDER BY va.floor, va.counter
+      `, [id]);
 
-        res.json({
-            total: parseInt(totalReq.rows[0].count),
-            byBatch: batchReq.rows,
-            byCounter: counterReq.rows
-        });
+      res.json({
+        total: Number(totalReq.rows[0].count),
+        byBatch: batchReq.rows,
+        byCounter: counterReq.rows
+      });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Server error fetching stats" });
+      console.error('Admin stats error:', err);
+      res.status(500).json({ error: 'Failed to fetch admin stats' });
     }
-});
+  }
+);
+
 
 
 
@@ -391,42 +403,7 @@ router.get('/:id/scan-history', authenticateToken, requireAdmin, async (req, res
 });
 
 // Optimized volunteer stats
-router.get('/:id/stats/volunteer/:vid', authenticateToken, async (req, res) => {
-    const { id, vid } = req.params;
-    
-    try {
-        const [totalResult, batchResult, volunteerResult] = await Promise.all([
-            db.query(`
-                SELECT COUNT(*) 
-                FROM volunteer_actions va
-                JOIN registrations r ON va.registration_id = r.registration_id
-                WHERE r.event_id = $1 AND va.volunteer_id = $2
-            `, [id, vid]),
-            
-            db.query(`
-                SELECT u.batch, COUNT(*) as count
-                FROM volunteer_actions va
-                JOIN registrations r ON va.registration_id = r.registration_id
-                JOIN users u ON r.student_id = u.user_id
-                WHERE r.event_id = $1 AND va.volunteer_id = $2
-                GROUP BY u.batch
-                ORDER BY u.batch ASC
-            `, [id, vid]),
-            
-            db.query('SELECT name FROM volunteers WHERE id = $1', [vid])
-        ]);
 
-        res.json({
-            total: parseInt(totalResult.rows[0].count),
-            byBatch: batchResult.rows,
-            volunteerName: volunteerResult.rows[0]?.name || 'Unknown'
-        });
-
-    } catch (err) {
-        console.error('❌ Volunteer stats error:', err);
-        res.status(500).json({ error: "Server error fetching volunteer stats" });
-    }
-});
 
 // GET available slots
 router.get('/:id/slots', authenticateToken, async (req, res) => {
@@ -447,7 +424,11 @@ router.get('/:id/slots', authenticateToken, async (req, res) => {
 });
 
 // UPDATE volunteer's assignment
-router.patch('/volunteers/:vid/assignment', authenticateToken, async (req, res) => {
+router.patch(
+  '/volunteers/:vid/assignment',
+  authenticateToken,
+  adminMutationLimiter,
+  async (req, res) => {
     const { vid } = req.params;
     const { floor, counter } = req.body;
     try {
@@ -514,6 +495,36 @@ router.get('/volunteer/:volunteerId', authenticateToken, async (req, res) => {
         }
         
         res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// 1. GET ALL EVENTS (Admin)
+router.get('/', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        //  RE-ADDED: Auto-Close Logic
+        // This checks if the event's End Time is less than the Current Time (in IST)
+        await db.query(`
+            UPDATE events
+            SET status = 'closed'
+            WHERE status = 'active'
+            AND event_id IN (
+                SELECT event_id FROM event_slots
+                GROUP BY event_id
+                HAVING MAX(time_end) < NOW())
+        `);
+
+        // --- Fetch List ---
+        const result = await db.query(`
+            SELECT e.*, 
+                   (SELECT time_start FROM event_slots WHERE event_id = e.event_id LIMIT 1) as time_start,
+                   (SELECT time_end FROM event_slots WHERE event_id = e.event_id LIMIT 1) as time_end
+            FROM events e 
+            ORDER BY date ASC
+        `);
+        res.json(result.rows);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Server error" });

@@ -5,8 +5,15 @@ const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
 require('dotenv').config();
-const rateLimit = require('express-rate-limit');
 const db = require('./db');
+const rateLimit = require('express-rate-limit');
+
+const volunteerLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500,                // 500 requests per IP
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -22,12 +29,6 @@ const PORT = process.env.PORT || 3000;
 ====================== */
 app.use(cors());
 
-const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute per IP
-  message: { error: 'Too many requests, please try again later' }
-});
-app.use('/api/', limiter);
 app.use(express.json());
 
 app.use(helmet({
