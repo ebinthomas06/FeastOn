@@ -403,7 +403,42 @@ router.get('/:id/scan-history', authenticateToken, requireAdmin, async (req, res
 });
 
 // Optimized volunteer stats
+router.get('/:id/stats/volunteer/:vid', authenticateToken, async (req, res) => {
+    const { id, vid } = req.params;
+    
+    try {
+        const [totalResult, batchResult, volunteerResult] = await Promise.all([
+            db.query(`
+                SELECT COUNT(*) 
+                FROM volunteer_actions va
+                JOIN registrations r ON va.registration_id = r.registration_id
+                WHERE r.event_id = $1 AND va.volunteer_id = $2
+            `, [id, vid]),
+            
+            db.query(`
+                SELECT u.batch, COUNT(*) as count
+                FROM volunteer_actions va
+                JOIN registrations r ON va.registration_id = r.registration_id
+                JOIN users u ON r.student_id = u.user_id
+                WHERE r.event_id = $1 AND va.volunteer_id = $2
+                GROUP BY u.batch
+                ORDER BY u.batch ASC
+            `, [id, vid]),
+            
+            db.query('SELECT name FROM volunteers WHERE id = $1', [vid])
+        ]);
 
+        res.json({
+            total: parseInt(totalResult.rows[0].count),
+            byBatch: batchResult.rows,
+            volunteerName: volunteerResult.rows[0]?.name || 'Unknown'
+        });
+
+    } catch (err) {
+        console.error('❌ Volunteer stats error:', err);
+        res.status(500).json({ error: "Server error fetching volunteer stats" });
+    }
+});
 
 // GET available slots
 router.get('/:id/slots', authenticateToken, async (req, res) => {
