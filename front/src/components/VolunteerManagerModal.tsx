@@ -115,7 +115,7 @@ const VolunteerManagerModal: React.FC<VolunteerManagerModalProps> = ({ show, onH
   const copyToClipboard = () => {
     if (createdCreds) {
       // UPDATED: Added Volunteer Name to the copied text
-      const text = `🔑 *Klee Volunteer Access*\nEvent: ${eventName}\nVolunteer: ${createdCreds.n}\nUsername: ${createdCreds.u}\nPassword: ${createdCreds.p}`;
+      const text = `🔑 *FeastOn Volunteer Access*\nEvent: ${eventName}\nVolunteer: ${createdCreds.n}\nUsername: ${createdCreds.u}\nPassword: ${createdCreds.p}`;
       navigator.clipboard.writeText(text);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
