@@ -28,7 +28,7 @@ const isValidStudentEmail = (email) => {
 
 
 // 1. Setup Google Client
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const CLIENT_ID = process.env.LOGIN_GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_change_this";
 

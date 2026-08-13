@@ -7,6 +7,8 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import StaffLoginPage from './pages/StaffLoginPage';
+import RefundSubmissionPage from './pages/RefundSubmissionPage';
+
 
 function App() {
   return (
@@ -36,6 +38,7 @@ function App() {
           </Route>
           
           <Route path="/" element={<LoginPage />} /> 
+          <Route path="/refund/:formId" element={<RefundSubmissionPage />} />
         </Routes>
       </main>
 

@@ -150,3 +150,39 @@ export const registrationApi = {
         body: JSON.stringify({ student_id: studentId, event_id: eventId }) 
     }),
 };
+
+export const refundsApi = {
+  createForm: (formData: { title: string; semester: string; year: number }) =>
+    request('/refunds/forms', { method: 'POST', body: JSON.stringify(formData) }),
+ 
+  getAllForms: () =>
+    request('/refunds/forms/all'),
+ 
+  updateStatus: (id: number, status: string) =>
+    request(`/refunds/forms/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+ 
+  // --- NEW: Student-facing methods ---
+ 
+  getActiveForms: () =>
+    request('/refunds/active'),
+ 
+  getMySubmission: (formId: number) =>
+    request(`/refunds/forms/${formId}/my-submission`),
+ 
+  submit: (
+  formId: number,
+  data: {
+    account_holder_name: string;
+    bank_name: string;
+    branch_name: string;
+    account_number: string;
+    confirm_account_number: string;
+    ifsc_code: string;
+  }
+) =>
+  request(`/refunds/forms/${formId}/submit`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+};
+ 

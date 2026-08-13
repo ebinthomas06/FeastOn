@@ -55,3 +55,7 @@ out/
 # Optional: Ignore package-lock.json if you strictly use yarn (keep if you use npm)
 package-lock.json
 yarn.lock
+
+back/google-credentials.json
+back/get-refresh-token.js
+back/get-refresh-token.js

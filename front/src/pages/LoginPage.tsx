@@ -2,16 +2,17 @@ import React, { useState } from "react";
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext'; 
-import { useNavigate } from 'react-router-dom';
 import { Container, Card } from 'react-bootstrap';
 import { authApi } from '../services/api';
 import { useTheme } from '../context/ThemeContext'; 
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
-  const { colors, mode } = useTheme(); 
+  const { colors, mode } = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     try {
@@ -19,19 +20,25 @@ const LoginPage: React.FC = () => {
       if (!credential) return;
 
       const data = await authApi.googleLogin(credential);
-
       login(data.token, data.user);
-      
-      if (data.user.role === 'admin') navigate('/admin');
-      else if (data.user.role === 'volunteer') navigate('/staff');
-      else navigate('/dashboard');
+
+      const redirectTo = searchParams.get('redirect');
+
+      if (redirectTo) {
+        navigate(redirectTo);
+      } else if (data.user.role === 'admin') {
+        navigate('/admin');
+      } else if (data.user.role === 'volunteer') {
+        navigate('/staff');
+      } else {
+        navigate('/dashboard');
+      }
 
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Login Failed");
     }
   };
-
   return (
     <Container 
       className="d-flex align-items-center justify-content-center" 

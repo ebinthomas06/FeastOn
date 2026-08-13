@@ -20,6 +20,7 @@ const authRoutes = require('./routes/auth');
 const eventRoutes = require('./routes/events');
 const userRoutes = require('./routes/users');
 const registrationRoutes = require('./routes/registrations');
+const refundRoutes = require('./routes/refunds');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,6 +63,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/registrations', registrationRoutes);
+app.use('/api/refunds', refundRoutes);
 
 /* ======================
    API Health Check

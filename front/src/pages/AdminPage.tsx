@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Card, Form, Button, Row, Col, Alert, Spinner, Table, Badge } from 'react-bootstrap';
-import { PlusCircle, Trash, PencilSquare, Lock, Unlock, BarChartFill, PersonBadge } from 'react-bootstrap-icons';
+import { PlusCircle, Trash, PencilSquare, Lock, Unlock, BarChartFill, PersonBadge, Eye, EyeSlash, XCircle ,Link45deg,Check2} from 'react-bootstrap-icons';
 import EventStatsModal from '../components/EventStatsModal';
-import { eventsApi } from '../services/api';
+import { eventsApi,refundsApi } from '../services/api';
 import VolunteerManagerModal from '../components/VolunteerManagerModal';
 import { useTheme } from '../context/ThemeContext';
 
@@ -23,10 +23,21 @@ interface EventData {
   time_end?: string;
 }
 
-const AdminPage: React.FC = () => {
-  const { colors,mode } = useTheme(); 
+interface RefundFormType {
+  form_id: number;
+  title: string;
+  semester: string;
+  year: number;
+  status: 'hidden' | 'active' | 'closed';
+  google_sheet_url: string | null;
+  google_sheet_id?: string;
+  created_at?: string;
+}
 
-  // --- Form State ---
+const AdminPage: React.FC = () => {
+  const { colors, mode } = useTheme(); 
+
+  // --- Form State (Events) ---
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [description, setDescription] = useState('');
@@ -36,12 +47,22 @@ const AdminPage: React.FC = () => {
   const defaultFloors = [{ id: 1, floorName: '1st Floor', counterCount: 2, capacityPerCounter: 50 }];
   const [floors, setFloors] = useState<FloorConfig[]>(defaultFloors);
 
-  // --- Data State ---
+  // --- Data State (Events) ---
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [message, setMessage] = useState<{type: 'success'|'danger'|'warning', text: string} | null>(null);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
+
+  // --- State (Refund Forms) ---
+  const [refundForms, setRefundForms] = useState<RefundFormType[]>([]);
+  const [fetchingRefunds, setFetchingRefunds] = useState(false);
+  const [creatingRefund, setCreatingRefund] = useState(false);
+  const [refundTitle, setRefundTitle] = useState('');
+  const [refundSemester, setRefundSemester] = useState('Odd');
+  const [refundYear, setRefundYear] = useState(new Date().getFullYear());
+  const [copiedFormId, setCopiedFormId] = useState<number | null>(null);
+const [validationError, setValidationError] = useState('');
 
   // --- Modal States ---
   const [showStats, setShowStats] = useState(false);
@@ -52,12 +73,10 @@ const AdminPage: React.FC = () => {
   // --- Helpers ---
   const formatTime = (isoString?: string) => {
     if (!isoString) return '-';
-    // Display in Local Time (IST)
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDate = (isoString: string) => {
-    // Display in Local Date
     return new Date(isoString).toLocaleDateString('en-GB'); 
   };
 
@@ -72,7 +91,11 @@ const AdminPage: React.FC = () => {
     return checkDate < now;
   };
 
-  // --- API Actions ---
+  const getTodayDate = () => {
+    return new Date().toLocaleDateString('en-CA'); 
+  };
+
+  // --- API Actions (Events) ---
   const fetchEvents = async () => {
     setFetching(true);
     try {
@@ -85,8 +108,22 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // --- API Actions (Refund Forms) ---
+ const fetchRefundForms = async () => {
+    setFetchingRefunds(true);
+    try {
+      const data = await refundsApi.getAllForms();
+      setRefundForms(data);
+    } catch (err: any) {
+      console.error('Failed to fetch forms:', err.message);
+    } finally {
+      setFetchingRefunds(false);
+    }
+};
+
   useEffect(() => {
     fetchEvents();
+    fetchRefundForms();
   }, []);
 
   // --- Floor Logic ---
@@ -103,15 +140,11 @@ const AdminPage: React.FC = () => {
     setDescription(event.description);
     setCurrentStatus(event.status);
     
-    // Parse Date for Input Field (YYYY-MM-DD)
     const dt = new Date(event.date);
-    // Use en-CA because it reliably gives YYYY-MM-DD format
     setEventDate(dt.toLocaleDateString('en-CA')); 
 
-    // Parse Time for Input Fields (HH:mm)
     if (event.time_start) {
         const start = new Date(event.time_start);
-        // Force 'en-GB' to get 24h format (13:00) which input type="time" requires
         setStartTime(start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
     }
     if (event.time_end) {
@@ -149,7 +182,6 @@ const AdminPage: React.FC = () => {
 
     try {
         await eventsApi.update(editingEventId, { status: newStatus });
-        
         setCurrentStatus(newStatus);
         setMessage({ type: 'success', text: `Event marked as ${newStatus}` });
         fetchEvents();
@@ -162,7 +194,6 @@ const AdminPage: React.FC = () => {
     if(!window.confirm("Are you sure you want to permanently delete this event? This will remove all student registrations and logs.")) return;
     try {
       await eventsApi.delete(id);
-      
       setMessage({ type: 'success', text: 'Event deleted' });
       fetchEvents();
     } catch (err) {
@@ -170,32 +201,18 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  // ✅ FIXED: Safer way to get today's date for 'min' attribute
-  const getTodayDate = () => {
-    // 'en-CA' locale code always outputs YYYY-MM-DD format
-    return new Date().toLocaleDateString('en-CA'); 
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simple string comparison for 'min' date works fine here
     if (eventDate < getTodayDate()) {
-      setMessage({ 
-        type: 'danger', 
-        text: 'Cannot create events for past dates. Please select today or a future date.' 
-      });
+      setMessage({ type: 'danger', text: 'Cannot create events for past dates. Please select today or a future date.' });
       return;
     }
 
-    // ✅ FIXED: TIME CONVERSION
-    // 1. Create a Date object from the Local Input (Browser treats this as IST)
     const dateObj = new Date(eventDate);
     const startObj = new Date(`${eventDate}T${startTime}:00`);
     const endObj = new Date(`${eventDate}T${endTime}:00`);
 
-    // 2. Convert to UTC String before sending to Backend
-    // Example: 12:00 IST -> 06:30 UTC
     const isoDate = dateObj.toISOString();
     const isoStartTime = startObj.toISOString();
     const isoEndTime = endObj.toISOString();
@@ -207,9 +224,9 @@ const AdminPage: React.FC = () => {
         await eventsApi.update(editingEventId, { 
             name: eventName, 
             description, 
-            date: isoDate,        // Send UTC
-            time_start: isoStartTime, // Send UTC
-            time_end: isoEndTime,     // Send UTC
+            date: isoDate,        
+            time_start: isoStartTime, 
+            time_end: isoEndTime,     
             status: currentStatus 
         });
 
@@ -229,8 +246,8 @@ const AdminPage: React.FC = () => {
                 floor: floor.floorName,
                 counter: i,
                 capacity: floor.capacityPerCounter,
-                time_start: isoStartTime, // Send UTC
-                time_end: isoEndTime      // Send UTC
+                time_start: isoStartTime, 
+                time_end: isoEndTime      
             }));
           }
         });
@@ -249,6 +266,51 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // --- Refund Handlers ---
+  const handleCreateRefundSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingRefund(true);
+    try {
+      // Clean, centralized call that automatically includes 'coupon_app_token'
+      await refundsApi.createForm({
+        title: refundTitle,
+        semester: refundSemester,
+        year: refundYear
+      });
+
+      setMessage({ type: 'success', text: 'Refund form created successfully! It is hidden by default.' });
+      setRefundTitle('');
+      fetchRefundForms();
+    } catch (err: any) {
+      // Cast 'err' to 'any' (or 'Error') to safely access err.message
+      setMessage({ type: 'danger', text: err.message || 'Error communicating with server.' });
+    } finally {
+      setCreatingRefund(false);
+    }
+  };
+
+  const handleUpdateRefundStatus = async (id: number | number, newStatus: string) => {
+    try {
+      await refundsApi.updateStatus(id, newStatus);
+      setMessage({ type: 'success', text: `Refund form is now ${newStatus}.` });
+      fetchRefundForms();
+    } catch (err: any) {
+       // Cast 'err' to 'any' (or 'Error') to safely access err.message
+      setMessage({ type: 'danger', text: err.message || 'Failed to change form status.' });
+    }
+  };
+const handleCopyLink = async (formId: number) => {
+  const link = `${window.location.origin}/refund/${formId}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    setCopiedFormId(formId);
+    setTimeout(() => setCopiedFormId(null), 2000); // reset after 2s
+  } catch (err) {
+    setMessage({ type: 'danger', text: 'Failed to copy link. Please copy it manually.' });
+  }
+};
+
+
   const openStats = (event: EventData) => {
       setSelectedEventForStats({ id: event.event_id, name: event.name });
       setShowStats(true);
@@ -259,7 +321,6 @@ const AdminPage: React.FC = () => {
     setShowVolModal(true);
   };
 
-  // Check if any modal is currently open
   const isModalOpen = showStats || showVolModal;
 
   return (
@@ -269,7 +330,6 @@ const AdminPage: React.FC = () => {
             backgroundColor: colors.ui.background, 
             minHeight: '100vh', 
             color: colors.text.primary,
-            // Dynamic Blur Effect for Background
             filter: isModalOpen ? 'blur(5px)' : 'none',
             transition: 'filter 0.3s ease'
         }}
@@ -281,7 +341,6 @@ const AdminPage: React.FC = () => {
             color: ${colors.text.secondary} !important;
             opacity: 0.7;
           }
-            /* Force calendar/clock icons to invert in Dark Mode so they are visible */
           ${mode === 'dark' ? `
             ::-webkit-calendar-picker-indicator {
                 filter: invert(1);
@@ -298,9 +357,9 @@ const AdminPage: React.FC = () => {
         {editingEventId && <Button variant="outline-secondary" onClick={handleCancelEdit}>Cancel Edit</Button>}
       </div>
       
-      {message && <Alert variant={message.type}>{message.text}</Alert>}
+      {message && <Alert variant={message.type} onClose={() => setMessage(null)} dismissible>{message.text}</Alert>}
 
-      {/* --- FORM SECTION --- */}
+      {/* --- EVENT FORM SECTION --- */}
       <Form onSubmit={handleSubmit}>
         <Card className="mb-4 shadow-sm" style={{ backgroundColor: colors.ui.card, border: `1px solid ${colors.ui.border}` }}>
           <Card.Header className="py-3 d-flex justify-content-between align-items-center" style={{ backgroundColor: colors.ui.card, borderBottom: `1px solid ${colors.ui.border}` }}>
@@ -336,7 +395,6 @@ const AdminPage: React.FC = () => {
                     required 
                     value={eventName} 
                     onChange={e => setEventName(e.target.value)} 
-                    // Use new helper function
                     min={getTodayDate()} 
                     placeholder="e.g. Christmas Dinner"
                     className="custom-placeholder" 
@@ -489,11 +547,11 @@ const AdminPage: React.FC = () => {
         </Button>
       </Form>
 
-      {/* --- TABLE SECTION --- */}
+      {/* --- TABLE SECTION (EVENTS) --- */}
       <h3 className="mb-3 fw-bold mt-5 border-top pt-4" style={{ color: colors.text.primary, borderColor: colors.ui.border }}>Manage Existing Events</h3>
       {fetching ? <div className="text-center p-5"><Spinner animation="border" variant="success" /></div> : 
        events.length === 0 ? <Alert variant="info">No events found.</Alert> : (
-        <Card className="shadow-sm" style={{ backgroundColor: colors.ui.card, border: `1px solid ${colors.ui.border}` }}>
+        <Card className="shadow-sm mb-5" style={{ backgroundColor: colors.ui.card, border: `1px solid ${colors.ui.border}` }}>
           <Table responsive hover className="mb-0 align-middle">
             <thead style={{ backgroundColor: colors.ui.background }}>
               <tr>
@@ -550,6 +608,142 @@ const AdminPage: React.FC = () => {
         </Card>
       )}
 
+      {/* --- REFUND FORMS SECTION --- */}
+      <h3 className="mb-3 fw-bold mt-5 border-top pt-4" style={{ color: colors.text.primary, borderColor: colors.ui.border }}>Manage Refund Forms</h3>
+      
+      <Card className="mb-4 shadow-sm" style={{ backgroundColor: colors.ui.card, border: `1px solid ${colors.ui.border}` }}>
+        <Card.Header className="py-3" style={{ backgroundColor: colors.ui.card, borderBottom: `1px solid ${colors.ui.border}` }}>
+          <span className="fw-bold" style={{ color: colors.text.primary }}>Create New Refund Form</span>
+          <span className="ms-2 small fw-normal" style={{ color: colors.text.secondary }}>
+    (Title + Semester + Year must be unique)
+  </span>
+        </Card.Header>
+        <Card.Body>
+          <Form onSubmit={handleCreateRefundSubmit}>
+            <Row className="align-items-end">
+              <Col md={5} className="mb-3 mb-md-0">
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Title</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    required 
+                    value={refundTitle}
+                    onChange={(e) => setRefundTitle(e.target.value)}
+                    placeholder="e.g. Mess Refund"
+                    className="custom-placeholder" 
+                    style={{ backgroundColor: colors.ui.background, color: colors.text.primary, borderColor: colors.ui.border }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3} className="mb-3 mb-md-0">
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Semester</Form.Label>
+                  <Form.Select 
+                    value={refundSemester}
+                    onChange={(e) => setRefundSemester(e.target.value)}
+                    style={{ backgroundColor: colors.ui.background, color: colors.text.primary, borderColor: colors.ui.border }}
+                  >
+                    <option value="Odd">Odd Semester</option>
+                    <option value="Even">Even Semester</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={2} className="mb-3 mb-md-0">
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Year</Form.Label>
+                  <Form.Control 
+                    type="number" 
+                    required 
+                    value={refundYear}
+                    onChange={(e) => setRefundYear(Number(e.target.value))}
+                    style={{ backgroundColor: colors.ui.background, color: colors.text.primary, borderColor: colors.ui.border }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={2}>
+                <Button type="submit" variant="success" className="w-100" disabled={creatingRefund} style={{ backgroundColor: colors.primary.main, borderColor: colors.primary.main }}>
+                  {creatingRefund ? <Spinner animation="border" size="sm" /> : <><PlusCircle className="me-1"/> Create</>}
+                </Button>
+              </Col>
+            </Row>
+          </Form>
+        </Card.Body>
+      </Card>
+
+      {fetchingRefunds ? <div className="text-center p-5"><Spinner animation="border" variant="success" /></div> : 
+       refundForms.length === 0 ? <Alert variant="info">No refund forms found.</Alert> : (
+        <Card className="shadow-sm mb-5" style={{ backgroundColor: colors.ui.card, border: `1px solid ${colors.ui.border}` }}>
+          <Table responsive hover className="mb-0 align-middle">
+            <thead style={{ backgroundColor: colors.ui.background }}>
+              <tr>
+                <th style={{ backgroundColor: colors.ui.background, color: colors.text.secondary }}>Title</th>
+                <th style={{ backgroundColor: colors.ui.background, color: colors.text.secondary }}>Semester</th>
+                <th style={{ backgroundColor: colors.ui.background, color: colors.text.secondary }}>Year</th>
+                <th style={{ backgroundColor: colors.ui.background, color: colors.text.secondary }}>Visibility Status</th>
+                <th style={{ backgroundColor: colors.ui.background, color: colors.text.secondary }}>Sheet</th>
+                <th className="text-end" style={{ backgroundColor: colors.ui.background, color: colors.text.secondary }}>Toggle View For Students</th>
+              </tr>
+            </thead>
+            <tbody>
+              {refundForms.map(form => (
+  <tr key={form.form_id}>
+    <td className="fw-bold" style={{ backgroundColor: colors.ui.card, color: colors.text.primary }}>{form.title}</td>
+    <td style={{ backgroundColor: colors.ui.card, color: colors.text.primary }}>{form.semester}</td>
+    <td style={{ backgroundColor: colors.ui.card, color: colors.text.primary }}>{form.year}</td>
+    <td style={{ backgroundColor: colors.ui.card }}>
+      {form.google_sheet_url ? (
+        <a href={form.google_sheet_url} target="_blank" rel="noopener noreferrer">
+          Open Sheet
+        </a>
+      ) : (
+        <span style={{ color: colors.text.secondary }}>—</span>
+      )}
+    </td>
+    <td style={{ backgroundColor: colors.ui.card }}>
+      {form.status === 'hidden' && <Badge bg="secondary">Hidden</Badge>}
+      {form.status === 'active' && <Badge bg="success">Active (Collecting)</Badge>}
+      {form.status === 'closed' && <Badge bg="danger">Closed</Badge>}
+    </td>
+    <td className="text-end" style={{ backgroundColor: colors.ui.card }}>
+      <div className="d-flex flex-wrap gap-2 justify-content-md-end">
+        {form.status === 'active' && (
+          <Button
+            variant={copiedFormId === form.form_id ? 'success' : 'outline-primary'}
+            size="sm"
+            onClick={() => handleCopyLink(form.form_id)}
+          >
+            {copiedFormId === form.form_id ? (
+              <><Check2 className="me-1" /> Copied!</>
+            ) : (
+              <><Link45deg className="me-1" /> Copy Link</>
+            )}
+          </Button>
+        )}
+        {form.status !== 'active' && (
+          <Button variant="outline-success" size="sm" onClick={() => handleUpdateRefundStatus(form.form_id, 'active')}>
+            <Eye className="me-1"/> Enable View (Active)
+          </Button>
+        )}
+        {form.status === 'active' && (
+          <Button variant="outline-warning" size="sm" onClick={() => handleUpdateRefundStatus(form.form_id, 'closed')}>
+            <XCircle className="me-1"/> Close Submissions
+          </Button>
+        )}
+        {form.status === 'active' && (
+          <Button variant="outline-secondary" size="sm" onClick={() => handleUpdateRefundStatus(form.form_id, 'hidden')} style={{ color: colors.text.primary, borderColor: colors.ui.border }}>
+            <EyeSlash className="me-1"/> Disable View (Hide)
+          </Button>
+        )}
+      </div>
+    </td>
+  </tr>
+))}
+
+            </tbody>
+          </Table>
+        </Card>
+      )}
+
       {/* --- STATS MODAL COMPONENT --- */}
       <EventStatsModal 
         show={showStats} 
@@ -570,4 +764,3 @@ const AdminPage: React.FC = () => {
 };
 
 export default AdminPage;
-
