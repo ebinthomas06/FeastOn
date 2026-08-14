@@ -20,7 +20,7 @@ const isValidStudentEmail = (email) => {
     // Example accepted:
     // sanjays24bec18
     // rahul23bcs07
-    const studentRegex =/^[a-z]+\.?[a-z]*(\d{2})[a-z]+\d+$/i;
+    const studentRegex = /^[a-z]+(?:\.[a-z]+)*(\d{2})[a-z]+\d+$/i;
 
     return studentRegex.test(localPart);
 };
@@ -45,7 +45,9 @@ const extractBatch = (email) => {
         // (\d{2})  -> Matches and Captures 2 digits (24) -> This is the batch
         // [a-z]+   -> Matches course (bec)
         // \d+      -> Matches roll number (18)
-        const match = localPart.match(/^[a-z]+\.?[a-z]*(\d{2})[a-z]+\d+$/i);
+        const match = localPart.match(
+    /^[a-z]+(?:\.[a-z]+)*(\d{2})[a-z]+\d+$/i
+);
         
         if (match && match[1]) {
             return "20" + match[1]; // Returns "2024" (or just match[1] if you want "24")
