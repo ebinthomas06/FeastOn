@@ -34,7 +34,20 @@ const RefundSubmissionPage: React.FC = () => {
 
   const [accountHolderName, setAccountHolderName] = useState('');
   const [bankName, setBankName] = useState('');
+  const [bankSelected, setBankSelected] = useState(''); // tracks dropdown value separately
   const [branchName, setBranchName] = useState('');
+
+  const KNOWN_BANKS = [
+    'State Bank of India (SBI)',
+    'Bank of Baroda',
+    'Canara Bank',
+    'Union Bank of India',
+    'ICICI Bank',
+    'HDFC Bank',
+    'Axis Bank',
+    'Kotak Mahindra Bank',
+    'Federal Bank',
+  ];
   const [accountNumber, setAccountNumber] = useState('');
   const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
@@ -102,7 +115,9 @@ const RefundSubmissionPage: React.FC = () => {
 
         if (submission) {
           setAccountHolderName(submission.account_holder_name || '');
-          setBankName(submission.bank_name || '');
+          const savedBank = submission.bank_name || '';
+          setBankName(savedBank);
+          setBankSelected(KNOWN_BANKS.includes(savedBank) ? savedBank : savedBank ? 'Other' : '');
           setBranchName(submission.branch_name || '');
           setAccountNumber(submission.account_number || '');
           setConfirmAccountNumber('');
@@ -264,14 +279,44 @@ const RefundSubmissionPage: React.FC = () => {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label style={{ color: colors.text.secondary }}>Bank Name</Form.Label>
-                  <Form.Control
-                    required
-                    value={bankName}
-                    onChange={(e) => !isLocked && setBankName(e.target.value)}
-                    readOnly={isLocked}
-                    placeholder="e.g. SBI"
-                    style={lockedInputStyle}
-                  />
+                  {isLocked ? (
+                    <Form.Control
+                      required
+                      value={bankName}
+                      readOnly
+                      style={lockedInputStyle}
+                    />
+                  ) : (
+                    <>
+                      <Form.Select
+                        required
+                        value={bankSelected}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBankSelected(val);
+                          if (val !== 'Other') setBankName(val);
+                          else setBankName('');
+                        }}
+                        style={inputStyle}
+                      >
+                        <option value="">-- Select a bank --</option>
+                        {KNOWN_BANKS.map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                        <option value="Other">Other</option>
+                      </Form.Select>
+                      {bankSelected === 'Other' && (
+                        <Form.Control
+                          required
+                          className="mt-2"
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                          placeholder="Enter your bank name"
+                          style={inputStyle}
+                        />
+                      )}
+                    </>
+                  )}
                 </Form.Group>
               </Col>
               <Col md={6}>
