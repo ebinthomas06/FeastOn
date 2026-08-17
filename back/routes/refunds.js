@@ -1,4 +1,4 @@
-// routes/refunds.js
+// routes/refunds.jsebinthomas24bcs99@iiitkottayam.ac.i
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -22,7 +22,7 @@ function cleanName(name = '') {
 
 /**
  * Derives a roll number from an IIITK email address.
- * e.g. "ebinthomas24bcs99@iiitkottayam.ac.in"
+ * e.g. "n"
  *       → strip domain → "ebinthomas24bcs99"
  *       → extract digits + letters → "2024BCS0099"
  *
@@ -287,18 +287,22 @@ router.post('/forms/:form_id/submit', authenticateToken, async (req, res) => {
 
         const googleSheetId = formResult.rows[0].google_sheet_id;
 
+        // ✅ CHECK IF STUDENT HAS ALREADY SUBMITTED FOR THIS FORM
+        const existingSubmission = await db.query(
+            `SELECT submission_id FROM refund_submissions WHERE form_id = $1 AND student_id = $2`,
+            [form_id, student_id]
+        );
+
+        if (existingSubmission.rows.length > 0) {
+            return res.status(409).json({ 
+                error: "You have already submitted this refund form. Contact the mess committee if you need to make changes." 
+            });
+        }
+
         const submissionResult = await db.query(`
             INSERT INTO refund_submissions 
                 (form_id, student_id, bank_name, account_holder_name, account_number, ifsc_code, branch_name, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-            ON CONFLICT (form_id, student_id) 
-            DO UPDATE SET 
-                bank_name = EXCLUDED.bank_name,
-                account_holder_name = EXCLUDED.account_holder_name,
-                account_number = EXCLUDED.account_number,
-                ifsc_code = EXCLUDED.ifsc_code,
-                branch_name = EXCLUDED.branch_name,
-                updated_at = NOW()
             RETURNING *;
         `, [form_id, student_id, bank_name.trim(), account_holder_name, account_number, normalizedIFSC, branch_name.trim()]);
 

@@ -48,23 +48,25 @@ const RefundSubmissionPage: React.FC = () => {
   const [accountNumberTouched, setAccountNumberTouched] = useState(false);
   const ACCOUNT_MASK_THRESHOLD = 11;
   const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-const ifscValid = ifscRegex.test(ifscCode);
-const ifscInvalid = ifscCode.length === 11 && !ifscValid;
- const inputStyle = {
+  const ifscValid = ifscRegex.test(ifscCode);
+  // Show error as soon as the input is non-empty and not yet a valid 11-char code
+  const ifscInvalid = ifscCode.length > 0 && !ifscValid;
+
+  const inputStyle = {
     backgroundColor: colors.ui.background,
     color: colors.text.primary,
     borderColor: colors.ui.border,
   };
-const isLocked = !!alreadySubmittedAt;
+  const isLocked = !!alreadySubmittedAt;
 
-const lockedInputStyle = {
-  ...inputStyle,
-  ...(isLocked && {
-    opacity: 0.75,
-    cursor: 'not-allowed',
-    backgroundColor: colors.ui.background,
-  }),
-};
+  const lockedInputStyle = {
+    ...inputStyle,
+    ...(isLocked && {
+      opacity: 0.75,
+      cursor: 'not-allowed',
+      backgroundColor: colors.ui.background,
+    }),
+  };
 
   // --- Auth check ---
   useEffect(() => {
@@ -120,18 +122,18 @@ const lockedInputStyle = {
   }, [user, formId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setMessage(null);
+    e.preventDefault();
+    setMessage(null);
 
-  // These are now backup guards; inline feedback already shows the user before submit
-  if (accountNumber !== confirmAccountNumber) {
-    setMessage({ type: 'danger', text: 'Account numbers do not match.' });
-    return;
-  }
-  if (!ifscValid) {
-    setMessage({ type: 'danger', text: 'Invalid IFSC code format (e.g. SBIN0001234).' });
-    return;
-  }
+    // These are now backup guards; inline feedback already shows the user before submit
+    if (accountNumber !== confirmAccountNumber) {
+      setMessage({ type: 'danger', text: 'Account numbers do not match.' });
+      return;
+    }
+    if (!ifscValid) {
+      setMessage({ type: 'danger', text: 'Invalid IFSC code format (e.g. SBIN0001234).' });
+      return;
+    }
 
     if (!bankName.trim()) {
       setMessage({ type: 'danger', text: 'Bank name is required.' });
@@ -154,8 +156,8 @@ const lockedInputStyle = {
         ifsc_code: ifscCode.toUpperCase(),
       });
       window.location.reload();
-      
-            setMessage({ type: 'success', text: 'Your refund details have been submitted successfully!' });
+
+      setMessage({ type: 'success', text: 'Your refund details have been submitted successfully!' });
     } catch (err: any) {
       setMessage({ type: 'danger', text: err.message || 'Failed to submit refund details.' });
     } finally {
@@ -181,8 +183,6 @@ const lockedInputStyle = {
     );
   }
 
- 
-
   return (
     <div className="container py-5" style={{ maxWidth: 700 }}>
       <Card className="shadow-sm" style={{ backgroundColor: colors.ui.card, border: `1px solid ${colors.ui.border}` }}>
@@ -205,183 +205,189 @@ const lockedInputStyle = {
           {message && <Alert variant={message.type}>{message.text}</Alert>}
 
           <Form onSubmit={handleSubmit}>
-  <Row className="mb-3">
-    <Col md={4}>
-      <Form.Group>
-        <Form.Label style={{ color: colors.text.secondary }}>Name</Form.Label>
-        <Form.Control
-          value={name}
-          onChange={(e) => !isLocked && setName(e.target.value)}
-          readOnly={isLocked}
-          style={lockedInputStyle}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={4}>
-      <Form.Group>
-        <Form.Label style={{ color: colors.text.secondary }}>Email</Form.Label>
-        <Form.Control
-          value={email}
-          onChange={(e) => !isLocked && setEmail(e.target.value)}
-          readOnly={isLocked}
-          style={lockedInputStyle}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={4}>
-      <Form.Group>
-        <Form.Label style={{ color: colors.text.secondary }}>Roll Number</Form.Label>
-        <Form.Control
-          value={rollNumber}
-          onChange={(e) => !isLocked && setRollNumber(e.target.value)}
-          readOnly={isLocked}
-          style={lockedInputStyle}
-        />
-      </Form.Group>
-    </Col>
-  </Row>
+            <Row className="mb-3">
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Name</Form.Label>
+                  <Form.Control
+                    value={name}
+                    onChange={(e) => !isLocked && setName(e.target.value)}
+                    readOnly={isLocked}
+                    style={lockedInputStyle}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Email</Form.Label>
+                  <Form.Control
+                    value={email}
+                    onChange={(e) => !isLocked && setEmail(e.target.value)}
+                    readOnly={isLocked}
+                    style={lockedInputStyle}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Roll Number</Form.Label>
+                  <Form.Control
+                    value={rollNumber}
+                    onChange={(e) => !isLocked && setRollNumber(e.target.value)}
+                    readOnly={isLocked}
+                    style={lockedInputStyle}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
-  <hr style={{ borderColor: colors.ui.border }} />
+            <hr style={{ borderColor: colors.ui.border }} />
 
-  <Form.Group className="mb-3">
-    <Form.Label style={{ color: colors.text.secondary }}>Account Holder Name</Form.Label>
-    <Form.Control
-      required
-      value={accountHolderName}
-      onChange={(e) => !isLocked && setAccountHolderName(e.target.value)}
-      readOnly={isLocked}
-      placeholder="As per bank passbook"
-      style={lockedInputStyle}
-    />
-    {!isLocked && (
-      <Form.Text style={{ color: colors.text.secondary }}>
-        Usually your own name, unless the account belongs to a parent/guardian.
-      </Form.Text>
-    )}
-  </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label style={{ color: colors.text.secondary }}>Account Holder Name</Form.Label>
+              <Form.Control
+                required
+                value={accountHolderName}
+                onChange={(e) => !isLocked && setAccountHolderName(e.target.value)}
+                readOnly={isLocked}
+                placeholder="As per bank passbook"
+                style={lockedInputStyle}
+              />
+              {!isLocked && (
+                <Form.Text style={{ color: colors.text.secondary }}>
+                  Usually your own name, unless the account belongs to a parent/guardian.
+                </Form.Text>
+              )}
+            </Form.Group>
 
-  <Row className="mb-3">
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label style={{ color: colors.text.secondary }}>Bank Name</Form.Label>
-        <Form.Control
-          required
-          value={bankName}
-          onChange={(e) => !isLocked && setBankName(e.target.value)}
-          readOnly={isLocked}
-          placeholder="e.g. SBI"
-          style={lockedInputStyle}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label style={{ color: colors.text.secondary }}>Branch Name</Form.Label>
-        <Form.Control
-          required
-          value={branchName}
-          onChange={(e) => !isLocked && setBranchName(e.target.value)}
-          readOnly={isLocked}
-          placeholder="e.g. Kottayam"
-          style={lockedInputStyle}
-        />
-      </Form.Group>
-    </Col>
-  </Row>
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Bank Name</Form.Label>
+                  <Form.Control
+                    required
+                    value={bankName}
+                    onChange={(e) => !isLocked && setBankName(e.target.value)}
+                    readOnly={isLocked}
+                    placeholder="e.g. SBI"
+                    style={lockedInputStyle}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Branch Name</Form.Label>
+                  <Form.Control
+                    required
+                    value={branchName}
+                    onChange={(e) => !isLocked && setBranchName(e.target.value)}
+                    readOnly={isLocked}
+                    placeholder="e.g. Kottayam"
+                    style={lockedInputStyle}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
-  <Row className="mb-4">
-    <Col md={isLocked ? 12 : 6}>
-      <Form.Group>
-        <Form.Label style={{ color: colors.text.secondary }}>Account Number</Form.Label>
-        <Form.Control
-          required
-          // Show plaintext when locked so the saved number is visible
-          type={isLocked ? 'text' : (accountNumberTouched && accountNumber.length >= ACCOUNT_MASK_THRESHOLD ? 'password' : 'text')}
-          inputMode="numeric"
-          value={accountNumber}
-          onChange={(e) => {
-            if (isLocked) return;
-            setAccountNumber(e.target.value.replace(/\D/g, ''));
-            setAccountNumberTouched(false);
-          }}
-          onBlur={() => {
-            if (!isLocked && accountNumber.length >= ACCOUNT_MASK_THRESHOLD)
-              setAccountNumberTouched(true);
-          }}
-          readOnly={isLocked}
-          style={lockedInputStyle}
-        />
-      </Form.Group>
-    </Col>
+            <Row className="mb-4">
+              <Col md={isLocked ? 12 : 6}>
+                <Form.Group>
+                  <Form.Label style={{ color: colors.text.secondary }}>Account Number</Form.Label>
+                  <Form.Control
+                    required
+                    // Show plaintext when locked so the saved number is visible
+                    type={isLocked ? 'text' : (accountNumberTouched && accountNumber.length >= ACCOUNT_MASK_THRESHOLD ? 'password' : 'text')}
+                    inputMode="numeric"
+                    value={accountNumber}
+                    onChange={(e) => {
+                      if (isLocked) return;
+                      setAccountNumber(e.target.value.replace(/\D/g, ''));
+                      setAccountNumberTouched(false);
+                    }}
+                    onBlur={() => {
+                      if (!isLocked && accountNumber.length >= ACCOUNT_MASK_THRESHOLD)
+                        setAccountNumberTouched(true);
+                    }}
+                    readOnly={isLocked}
+                    style={lockedInputStyle}
+                  />
+                </Form.Group>
+              </Col>
 
-    {/* Hide confirm field entirely when locked — it's always empty on reload */}
-    {!isLocked && (
-      <Col md={6}>
-        <Form.Group>
-          <Form.Label style={{ color: colors.text.secondary }}>Confirm Account Number</Form.Label>
-          <Form.Control
-            required
-            type="password"
-            inputMode="numeric"
-            value={confirmAccountNumber}
-            onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))}
-            onPaste={(e) => e.preventDefault()}
-            onCopy={(e) => e.preventDefault()}
-            autoComplete="off"
-            isInvalid={confirmAccountNumber.length > 0 && confirmAccountNumber !== accountNumber}
-            isValid={confirmAccountNumber.length > 0 && confirmAccountNumber === accountNumber}
-            style={inputStyle}
-          />
-          {confirmAccountNumber.length > 0 && confirmAccountNumber !== accountNumber && (
-            <Form.Control.Feedback type="invalid">Account numbers do not match.</Form.Control.Feedback>
-          )}
-          {confirmAccountNumber.length > 0 && confirmAccountNumber === accountNumber && (
-            <Form.Control.Feedback type="valid">Looks good!</Form.Control.Feedback>
-          )}
-        </Form.Group>
-      </Col>
-    )}
-  </Row>
+              {/* Confirm field: hidden when locked (already submitted), visible while filling */}
+              {!isLocked && (
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label style={{ color: colors.text.secondary }}>Confirm Account Number</Form.Label>
+                    <Form.Control
+                      required
+                      type="text"
+                      inputMode="numeric"
+                      value={confirmAccountNumber}
+                      onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))}
+                      onPaste={(e) => e.preventDefault()}
+                      onCopy={(e) => e.preventDefault()}
+                      autoComplete="off"
+                      isInvalid={confirmAccountNumber.length > 0 && confirmAccountNumber !== accountNumber}
+                      isValid={confirmAccountNumber.length > 0 && confirmAccountNumber === accountNumber}
+                      style={inputStyle}
+                    />
+                    {confirmAccountNumber.length > 0 && confirmAccountNumber !== accountNumber && (
+                      <Form.Control.Feedback type="invalid">Account numbers do not match.</Form.Control.Feedback>
+                    )}
+                    {confirmAccountNumber.length > 0 && confirmAccountNumber === accountNumber && (
+                      <Form.Control.Feedback type="valid">Looks good!</Form.Control.Feedback>
+                    )}
+                  </Form.Group>
+                </Col>
+              )}
+            </Row>
 
-  <Form.Group className="mb-4">
-    <Form.Label style={{ color: colors.text.secondary }}>IFSC Code</Form.Label>
-    <Form.Control
-      required
-      value={ifscCode}
-      onChange={(e) => !isLocked && setIfscCode(e.target.value.toUpperCase())}
-      readOnly={isLocked}
-      placeholder="e.g. SBIN0001234"
-      isValid={!isLocked && ifscCode.length === 11 && ifscValid}
-      isInvalid={!isLocked && ifscInvalid}
-      style={{ ...lockedInputStyle, textTransform: 'uppercase' }}
-    />
-    {!isLocked && ifscInvalid ? (
-      <Form.Control.Feedback type="invalid">
-        Invalid format. Must be 4 letters, then 0, then 6 letters/digits (e.g. SBIN0001234).
-      </Form.Control.Feedback>
-    ) : (
-      !isLocked && (
-        <Form.Text style={{ color: colors.text.secondary }}>
-          Format: 4 letters, 0, then 6 letters/digits (e.g. SBIN0001234).
-        </Form.Text>
-      )
-    )}
-  </Form.Group>
+            <Form.Group className="mb-4">
+              <Form.Label style={{ color: colors.text.secondary }}>IFSC Code</Form.Label>
+              <Form.Control
+                required
+                value={ifscCode}
+                onChange={(e) => {
+                  if (isLocked) return;
+                  // Cap input at 11 characters
+                  const val = e.target.value.toUpperCase().slice(0, 11);
+                  setIfscCode(val);
+                }}
+                readOnly={isLocked}
+                placeholder="e.g. SBIN0001234"
+                maxLength={11}
+                isValid={!isLocked && ifscCode.length === 11 && ifscValid}
+                isInvalid={!isLocked && ifscInvalid}
+                style={{ ...lockedInputStyle, textTransform: 'uppercase' }}
+              />
+              {!isLocked && ifscInvalid ? (
+                <Form.Control.Feedback type="invalid">
+                  Invalid format. Must be 4 letters, then 0, then 6 letters/digits (e.g. SBIN0001234).
+                </Form.Control.Feedback>
+              ) : (
+                !isLocked && (
+                  <Form.Text style={{ color: colors.text.secondary }}>
+                    Format: 4 letters, 0, then 6 letters/digits (e.g. SBIN0001234).
+                  </Form.Text>
+                )
+              )}
+            </Form.Group>
 
-  <Button
-    type="submit"
-    variant="success"
-    disabled={submitting || isLocked}
-    className="w-100"
-    style={{ backgroundColor: colors.primary.main, borderColor: colors.primary.main }}
-  >
-    {submitting
-      ? <Spinner animation="border" size="sm" />
-      : isLocked
-        ? 'Already Submitted'
-        : 'Submit Refund Details'}
-  </Button>
-</Form>
+            <Button
+              type="submit"
+              variant="success"
+              disabled={submitting || isLocked}
+              className="w-100"
+              style={{ backgroundColor: colors.primary.main, borderColor: colors.primary.main }}
+            >
+              {submitting
+                ? <Spinner animation="border" size="sm" />
+                : isLocked
+                  ? 'Already Submitted'
+                  : 'Submit Refund Details'}
+            </Button>
+          </Form>
         </Card.Body>
       </Card>
     </div>
