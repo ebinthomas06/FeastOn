@@ -51,6 +51,7 @@ const RefundSubmissionPage: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState('');
   const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
+  const [confirmIfscCode, setConfirmIfscCode] = useState('');
 
   // Controls masking of the confirm-account-number field
   const [confirmTouched, setConfirmTouched] = useState(false);
@@ -64,7 +65,10 @@ const RefundSubmissionPage: React.FC = () => {
   const ifscValid = ifscRegex.test(ifscCode);
   // Show error as soon as the input is non-empty and not yet a valid 11-char code
   const ifscInvalid = ifscCode.length > 0 && !ifscValid;
+  const confirmIfscMatches =
+  confirmIfscCode.length > 0 && confirmIfscCode === ifscCode;
 
+  
   const inputStyle = {
     backgroundColor: colors.ui.background,
     color: colors.text.primary,
@@ -147,6 +151,10 @@ const RefundSubmissionPage: React.FC = () => {
     }
     if (!ifscValid) {
       setMessage({ type: 'danger', text: 'Invalid IFSC code format (e.g. SBIN0001234).' });
+      return;
+    }
+    if (ifscCode !== confirmIfscCode) {
+      setMessage({ type: 'danger', text: 'IFSC codes do not match.' });
       return;
     }
 
@@ -335,89 +343,243 @@ const RefundSubmissionPage: React.FC = () => {
             </Row>
 
             <Row className="mb-4">
-              <Col md={isLocked ? 12 : 6}>
-                <Form.Group>
-                  <Form.Label style={{ color: colors.text.secondary }}>Account Number</Form.Label>
-                  <Form.Control
-                    required
-                    // Show plaintext when locked so the saved number is visible
-                    type={isLocked ? 'text' : (accountNumberTouched && accountNumber.length >= ACCOUNT_MASK_THRESHOLD ? 'password' : 'text')}
-                    inputMode="numeric"
-                    value={accountNumber}
-                    onChange={(e) => {
-                      if (isLocked) return;
-                      setAccountNumber(e.target.value.replace(/\D/g, ''));
-                      setAccountNumberTouched(false);
-                    }}
-                    onBlur={() => {
-                      if (!isLocked && accountNumber.length >= ACCOUNT_MASK_THRESHOLD)
-                        setAccountNumberTouched(true);
-                    }}
-                    readOnly={isLocked}
-                    style={lockedInputStyle}
-                  />
-                </Form.Group>
-              </Col>
+  {/* Account Number */}
+  <Col md={isLocked ? 12 : 6}>
+    <Form.Group>
+      <Form.Label style={{ color: colors.text.secondary }}>
+        Account Number
+      </Form.Label>
 
-              {/* Confirm field: hidden when locked (already submitted), visible while filling */}
-              {!isLocked && (
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ color: colors.text.secondary }}>Confirm Account Number</Form.Label>
-                    <Form.Control
-                      required
-                      type="text"
-                      inputMode="numeric"
-                      value={confirmAccountNumber}
-                      onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, ''))}
-                      onPaste={(e) => e.preventDefault()}
-                      onCopy={(e) => e.preventDefault()}
-                      autoComplete="off"
-                      isInvalid={confirmAccountNumber.length > 0 && confirmAccountNumber !== accountNumber}
-                      isValid={confirmAccountNumber.length > 0 && confirmAccountNumber === accountNumber}
-                      style={inputStyle}
-                    />
-                    {confirmAccountNumber.length > 0 && confirmAccountNumber !== accountNumber && (
-                      <Form.Control.Feedback type="invalid">Account numbers do not match.</Form.Control.Feedback>
-                    )}
-                    {confirmAccountNumber.length > 0 && confirmAccountNumber === accountNumber && (
-                      <Form.Control.Feedback type="valid">Looks good!</Form.Control.Feedback>
-                    )}
-                  </Form.Group>
-                </Col>
-              )}
-            </Row>
+      <Form.Control
+        required
+        // Show plaintext when locked so the saved number is visible
+        type={
+          isLocked
+            ? 'text'
+            : (
+                accountNumberTouched &&
+                accountNumber.length >= ACCOUNT_MASK_THRESHOLD
+              )
+              ? 'password'
+              : 'text'
+        }
+        inputMode="numeric"
+        value={accountNumber}
+        onChange={(e) => {
+          if (isLocked) return;
 
-            <Form.Group className="mb-4">
-              <Form.Label style={{ color: colors.text.secondary }}>IFSC Code</Form.Label>
-              <Form.Control
-                required
-                value={ifscCode}
-                onChange={(e) => {
-                  if (isLocked) return;
-                  // Cap input at 11 characters
-                  const val = e.target.value.toUpperCase().slice(0, 11);
-                  setIfscCode(val);
-                }}
-                readOnly={isLocked}
-                placeholder="e.g. SBIN0001234"
-                maxLength={11}
-                isValid={!isLocked && ifscCode.length === 11 && ifscValid}
-                isInvalid={!isLocked && ifscInvalid}
-                style={{ ...lockedInputStyle, textTransform: 'uppercase' }}
-              />
-              {!isLocked && ifscInvalid ? (
-                <Form.Control.Feedback type="invalid">
-                  Invalid format. Must be 4 letters, then 0, then 6 letters/digits (e.g. SBIN0001234).
-                </Form.Control.Feedback>
-              ) : (
-                !isLocked && (
-                  <Form.Text style={{ color: colors.text.secondary }}>
-                    Format: 4 letters, 0, then 6 letters/digits (e.g. SBIN0001234).
-                  </Form.Text>
-                )
-              )}
-            </Form.Group>
+          setAccountNumber(
+            e.target.value.replace(/\D/g, '')
+          );
+
+          setAccountNumberTouched(false);
+        }}
+        onBlur={() => {
+          if (
+            !isLocked &&
+            accountNumber.length >= ACCOUNT_MASK_THRESHOLD
+          ) {
+            setAccountNumberTouched(true);
+          }
+        }}
+        readOnly={isLocked}
+        style={lockedInputStyle}
+      />
+    </Form.Group>
+  </Col>
+
+  {/* Confirm Account Number */}
+  {!isLocked && (
+    <Col md={6}>
+      <Form.Group>
+        <Form.Label style={{ color: colors.text.secondary }}>
+          Confirm Account Number
+        </Form.Label>
+
+        <Form.Control
+          required
+          type="text"
+          inputMode="numeric"
+          value={confirmAccountNumber}
+          onChange={(e) =>
+            setConfirmAccountNumber(
+              e.target.value.replace(/\D/g, '')
+            )
+          }
+          onPaste={(e) => e.preventDefault()}
+          onCopy={(e) => e.preventDefault()}
+          autoComplete="off"
+          isInvalid={
+            confirmAccountNumber.length > 0 &&
+            confirmAccountNumber !== accountNumber
+          }
+          isValid={
+            confirmAccountNumber.length > 0 &&
+            confirmAccountNumber === accountNumber
+          }
+          style={inputStyle}
+        />
+
+        {confirmAccountNumber.length > 0 &&
+          confirmAccountNumber !== accountNumber && (
+            <Form.Control.Feedback type="invalid">
+              Account numbers do not match.
+            </Form.Control.Feedback>
+          )}
+
+        {confirmAccountNumber.length > 0 &&
+          confirmAccountNumber === accountNumber && (
+            <Form.Control.Feedback type="valid">
+              Looks good!
+            </Form.Control.Feedback>
+          )}
+      </Form.Group>
+    </Col>
+  )}
+</Row>
+
+{/* IFSC Code */}
+<Row className="mb-4">
+
+  {/* First IFSC Code */}
+  <Col md={isLocked ? 12 : 6}>
+    <Form.Group>
+      <Form.Label style={{ color: colors.text.secondary }}>
+        IFSC Code
+      </Form.Label>
+
+      <Form.Control
+        required
+
+        /*
+         * Initially:
+         *   confirmIfscCode.length === 0 → show IFSC normally
+         *
+         * Once the student starts typing in the confirmation field:
+         *   confirmIfscCode.length > 0 → hide the original IFSC
+         */
+        type={
+          isLocked
+            ? 'text'
+            : confirmIfscCode.length > 0
+              ? 'password'
+              : 'text'
+        }
+
+        value={ifscCode}
+        onChange={(e) => {
+          if (isLocked) return;
+
+          const val = e.target.value
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, '')
+            .slice(0, 11);
+
+          setIfscCode(val);
+        }}
+        readOnly={isLocked}
+        placeholder="Enter IFSC code"
+        maxLength={11}
+
+        isValid={
+          !isLocked &&
+          ifscCode.length === 11 &&
+          ifscValid
+        }
+
+        isInvalid={
+          !isLocked &&
+          ifscInvalid
+        }
+
+        style={{
+          ...lockedInputStyle,
+          textTransform: 'uppercase',
+        }}
+      />
+
+      {!isLocked && ifscInvalid ? (
+        <Form.Control.Feedback type="invalid">
+          Invalid format. Must be 4 letters, then 0, then 6
+          letters/digits (e.g. SBIN0001234).
+        </Form.Control.Feedback>
+      ) : (
+        !isLocked && (
+          <Form.Text style={{ color: colors.text.secondary }}>
+            Format: 4 letters, 0, then 6 letters/digits.
+          </Form.Text>
+        )
+      )}
+    </Form.Group>
+  </Col>
+
+
+  {/* Confirm IFSC Code */}
+  {!isLocked && (
+    <Col md={6}>
+      <Form.Group>
+
+        <Form.Label style={{ color: colors.text.secondary }}>
+          Confirm IFSC Code
+        </Form.Label>
+
+        <Form.Control
+          required
+          type="text"
+          value={confirmIfscCode}
+
+          onChange={(e) => {
+            const val = e.target.value
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, '')
+              .slice(0, 11);
+
+            setConfirmIfscCode(val);
+          }}
+
+          onPaste={(e) => e.preventDefault()}
+          onCopy={(e) => e.preventDefault()}
+
+          autoComplete="off"
+          maxLength={11}
+
+          placeholder="RE-ENTER IFSC CODE"
+
+          isInvalid={
+            confirmIfscCode.length > 0 &&
+            confirmIfscCode !== ifscCode
+          }
+
+          isValid={
+            confirmIfscCode.length === 11 &&
+            confirmIfscCode === ifscCode
+          }
+
+          style={{
+            ...inputStyle,
+            textTransform: 'uppercase',
+          }}
+        />
+
+        {confirmIfscCode.length > 0 &&
+          confirmIfscCode !== ifscCode && (
+            <Form.Control.Feedback type="invalid">
+              IFSC codes do not match.
+            </Form.Control.Feedback>
+          )}
+
+        {confirmIfscCode.length === 11 &&
+          confirmIfscCode === ifscCode && (
+            <Form.Control.Feedback type="valid">
+              Looks good!
+            </Form.Control.Feedback>
+          )}
+
+      </Form.Group>
+    </Col>
+  )}
+
+</Row>
 
             <Button
               type="submit"
